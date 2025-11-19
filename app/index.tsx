@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { EdgeInsets, useSafeAreaInsets } from "react-native-safe-area-context";
 import Banner from "../components/Banner";
 import { StatusBar } from "expo-status-bar";
+import { getCircularIndex } from "@/scripts/getIndex";
 
 const SAMPLE_URLS = [
   "https://t2.genius.com/unsafe/881x0/https%3A%2F%2Fimages.genius.com%2F919f3cd4967e283956d99c512823d8c8.1000x1000x1.jpg",
@@ -19,10 +20,65 @@ const SAMPLE_URLS = [
   "https://t2.genius.com/unsafe/881x0/https%3A%2F%2Fimages.genius.com%2Fa2be5960ff7021a6e53b918f9a070d25.1000x1000x1.png",
   "https://www.citylife.sk/sites/default/files/blog/boards-of-canada-tomorrows-harvest.jpg",
 ];
+const AUTO_SCROLL_INTERVAL = 3500;
+const TICK_INTERVAL = 100;
 
 export default function Index() {
   const insets: EdgeInsets = useSafeAreaInsets();
+  const [timeLeft, setTimeLeft] = useState(AUTO_SCROLL_INTERVAL / 1000);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const prevIndex = getCircularIndex(selectedIndex - 1, SAMPLE_URLS.length);
+  const nextIndex = getCircularIndex(selectedIndex + 1, SAMPLE_URLS.length);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef(0);
+
+  const startAutoScroll = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
+
+    intervalRef.current = setInterval(() => {
+      setSelectedIndex((prev) =>
+        getCircularIndex(prev + 1, SAMPLE_URLS.length)
+      );
+      setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
+    }, AUTO_SCROLL_INTERVAL);
+  };
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      elapsedRef.current += TICK_INTERVAL;
+
+      // Counter
+      setTimeLeft(
+        Math.max(
+          Number(
+            ((AUTO_SCROLL_INTERVAL - elapsedRef.current) / 1000).toFixed(1)
+          ),
+          0
+        )
+      );
+
+      // Auto scroll
+      if (elapsedRef.current >= AUTO_SCROLL_INTERVAL) {
+        setSelectedIndex((prev) =>
+          getCircularIndex(prev + 1, SAMPLE_URLS.length)
+        );
+        elapsedRef.current = 0;
+        setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
+      }
+    }, TICK_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleBannerClick = useCallback((index: number) => {
+    setSelectedIndex(index);
+    startAutoScroll();
+  }, []);
 
   return (
     <>
@@ -46,12 +102,26 @@ export default function Index() {
           <Text style={styles.title}>
             Carousel With Boards Of Canada Albums
           </Text>
-          <Banner url={SAMPLE_URLS[selectedIndex]} title='Banner' />
+          <View style={styles.carouselRow}>
+            <Banner
+              isMain={false}
+              url={SAMPLE_URLS[prevIndex]}
+              title='Prev'
+              onPress={() => handleBannerClick(prevIndex)}
+            />
+            <Banner url={SAMPLE_URLS[selectedIndex]} title='Banner' />
+            <Banner
+              isMain={false}
+              url={SAMPLE_URLS[nextIndex]}
+              title='Next'
+              onPress={() => handleBannerClick(nextIndex)}
+            />
+          </View>
           <View style={styles.buttonRow}>
             {SAMPLE_URLS.map((_, index) => (
               <TouchableOpacity
                 key={index}
-                onPress={() => setSelectedIndex(index)}
+                onPress={() => handleBannerClick(index)}
                 style={[
                   styles.circle,
                   selectedIndex === index && styles.activeCircle,
@@ -59,6 +129,9 @@ export default function Index() {
               />
             ))}
           </View>
+          <Text style={styles.counter}>
+            Time left before Auto-Sroll: {timeLeft}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </>
@@ -78,6 +151,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 16,
   },
+  carouselRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 16,
+  },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -93,5 +173,9 @@ const styles = StyleSheet.create({
   },
   activeCircle: {
     backgroundColor: "#fff",
+  },
+  counter: {
+    color: "#FFF",
+    fontWeight: "bold",
   },
 });
