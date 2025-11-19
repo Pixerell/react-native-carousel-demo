@@ -1,17 +1,17 @@
+import { getCircularIndex } from "@/scripts/getIndex";
+import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Platform,
   KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { EdgeInsets, useSafeAreaInsets } from "react-native-safe-area-context";
 import Banner from "../components/Banner";
-import { StatusBar } from "expo-status-bar";
-import { getCircularIndex } from "@/scripts/getIndex";
 
 const SAMPLE_URLS = [
   "https://t2.genius.com/unsafe/881x0/https%3A%2F%2Fimages.genius.com%2F919f3cd4967e283956d99c512823d8c8.1000x1000x1.jpg",
@@ -31,18 +31,6 @@ export default function Index() {
   const nextIndex = getCircularIndex(selectedIndex + 1, SAMPLE_URLS.length);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
-
-  const startAutoScroll = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
-
-    intervalRef.current = setInterval(() => {
-      setSelectedIndex((prev) =>
-        getCircularIndex(prev + 1, SAMPLE_URLS.length)
-      );
-      setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
-    }, AUTO_SCROLL_INTERVAL);
-  };
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -77,7 +65,8 @@ export default function Index() {
 
   const handleBannerClick = useCallback((index: number) => {
     setSelectedIndex(index);
-    startAutoScroll();
+    elapsedRef.current = 0;
+    setTimeLeft(AUTO_SCROLL_INTERVAL / 1000);
   }, []);
 
   return (
